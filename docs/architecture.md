@@ -30,20 +30,21 @@ OctoFit Tracker is a three-tier application for a school fitness program. The st
 
 Record your plan here before editing code.
 
-- Presentation tier decision:
-- Logic tier decision:
-- Data tier decision:
-- Activity tracking approach:
-- Team management approach:
-- Leaderboard approach:
-- Workout suggestions approach:
+- Presentation tier decision: Keep API access in the shared frontend client and render each capability in its own route component. Show accessible loading, empty, success, and error states; use relative `/api` paths so Vite's proxy remains the default.
+- Logic tier decision: Keep request validation, HTTP status codes, and response shapes in the Express API, with business rules in backend services where appropriate. Reject invalid or missing resources with deliberate 4xx responses rather than leaking cast errors or returning placeholder success responses.
+- Data tier decision: Use Mongoose models to enforce required fields, valid relationships, and sensible defaults. Seed stable representative records for all capabilities using upserts that preserve unrelated records and existing relationships.
+- Activity tracking approach: Accept `userId`, `teamId`, `type`, and `minutes`; validate that both IDs are well-formed and refer to existing records before creating an activity. Persist references, compute points, and set `occurredAt` on creation; return stored activities from the list endpoint.
+- Team management approach: Require a name, retain the submitted name and mascot, and default members to an empty array. Create and list teams with their member references intact.
+- Leaderboard approach: Sum activity points by team, sort teams from highest to lowest total, and return each team's name, total points, and 1-based rank.
+- Workout suggestions approach: Find the user by email and use their fitness goal and recent activity to prioritize a matching workout. Include an explanatory reason with each suggestion, and return a deliberate 4xx response when the email has no matching user.
 
 ## Test plan
 
-Record the commands you run and what each failure means.
+Run focused tests after each capability, then run both builds before considering the tiers complete. The initial baseline was captured with the full backend and frontend test commands below; build commands have not been run.
 
-- Data-tier command: `npm run test:data --prefix octofit-tracker/backend`
-- API command: `npm run test:api --prefix octofit-tracker/backend`
-- Frontend command: `npm test --prefix octofit-tracker/frontend`
-- Backend build command: `npm run build --prefix octofit-tracker/backend`
-- Frontend build command: `npm run build --prefix octofit-tracker/frontend`
+- Data-tier command: `npm run test:data --prefix octofit-tracker/backend` — checks model validation, seeded records, relationships, idempotency, and preservation of unrelated records. The backend baseline had 4 data-contract failures: required user identity/goals, team fields, activity fields, and workout fields were not enforced.
+- API command: `npm run test:api --prefix octofit-tracker/backend` — checks activity and team validation/creation, leaderboard totals and ranking, and user-specific workout suggestions. The backend baseline had 4 API-contract failures: activity/team validation returned `501`, the leaderboard was empty, and Mona's first workout suggestion did not match her endurance activity.
+- Frontend command: `npm test --prefix octofit-tracker/frontend` — checks capability data rendering, the workout-suggestions request, and loading/empty/error states for every route. Baseline: all 15 tests failed; expected data and accessible states were missing.
+- Backend build command: `npm run build --prefix octofit-tracker/backend` — verifies TypeScript compilation; not run in the initial baseline.
+- Frontend build command: `npm run build --prefix octofit-tracker/frontend` — verifies TypeScript compilation and the Vite production build; not run in the initial baseline.
+- Baseline commands run: `npm test --prefix octofit-tracker/backend` (8 failed, 1 passed) and `npm test --prefix octofit-tracker/frontend` (15 failed). A failure in a focused suite identifies a contract gap in that tier; build failures indicate compilation or production-bundling issues.
